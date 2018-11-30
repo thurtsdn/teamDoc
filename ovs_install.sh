@@ -7,7 +7,7 @@
 make
 make modules_install
 /sbin/modprobe openvswitch
-mkedir -p /usr/local/etc/openvswitch
+mkdir -p /usr/local/etc/openvswitch
 ovsdb-tool create /usr/local/etc/openvswitch/conf.db vswitchd/vswitch.ovsschema
 ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
