@@ -6,6 +6,7 @@ cd ovs
 ./boot.sh
 ./configure --with-linux=/lib/modules/`uname -r`/build    --enable-Werror
 make
+make install
 make modules_install
 /sbin/modprobe openvswitch
 mkdir -p /usr/local/etc/openvswitch
