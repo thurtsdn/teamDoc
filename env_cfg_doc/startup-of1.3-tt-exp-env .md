@@ -16,6 +16,7 @@ $ sudo wireshark
 ```
 $ sudo ryu-manager --verbose ryu.app.simple_switch_tt_13 
 ```
+> 注意：在运行ryu控制器之前，需要将调度表文件放在某个目录下，并将ryu/app/simple_switch_tt_13.py中调度表文件地址更改为该目录
 
 ### 3. 启动基于ovs的拓扑 
 新打开一个终端，启动mininet
