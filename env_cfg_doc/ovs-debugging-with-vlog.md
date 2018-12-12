@@ -32,6 +32,8 @@ $ sudo ovs-appctl vlog/list
 
 运行结果如下：  
 
+![image](../images/vlog_list.png)
+
 
 可以根据需要，自行修改模块日志等级，例如：
 
@@ -42,8 +44,11 @@ $ sudo ovs-appctl vlog/set ANY:ANY:info
 
 运行结果如下：
 
+![image](../images/set_info.png)
+
 随后在程序运行过程中，可以在`/var/log/syslog`中查看自己在代码中加入的调试信息。
 
 例如：
 
+![image](../images/dbg_info.png)
 
