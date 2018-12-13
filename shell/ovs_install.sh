@@ -4,7 +4,7 @@
 
 cd ovs
 ./boot.sh
-./configure --with-linux=/lib/modules/`uname -r`/build    --enable-Werror
+./configure --with-linux=/lib/modules/`uname -r`/build    #--enable-Werror
 make
 make install
 make modules_install
