@@ -46,4 +46,4 @@
   - 这里会出现问题，安装失败，尝试sudo pip install --upgrade --ignore-installed pip
   - 如果还是失败，参考 https://stackoverflow.com/questions/49940813/pip-no-module-named-internal/50639340
 
-7. 创建自己branch，写完代码，编译通过，实验没有问题，就向TT-openvswitch提交pull request
+9. 创建自己branch，写完代码，编译通过，实验没有问题，就向TT-openvswitch提交pull request
