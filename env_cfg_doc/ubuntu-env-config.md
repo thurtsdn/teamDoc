@@ -29,7 +29,7 @@
 
 3. 基于TT-openvswitch/ovs的tt-ovs-2.5分支，创建本地的tt-ovs-2.5分支
 
-4. 安装ovs，使用ovs_install.sh安装即可
+4. 安装ovs，运行shell/ovs_install.sh安装即可
 
 5. clone自己fork的ryu repo
 
@@ -37,13 +37,8 @@
 
 7. 基于TT-openvswitch/ryu的tt-exp分支，创建本地的tt-exp分支
 
-8. 安装ryu
+8. 安装ryu，运行shell/ryu_install.sh安装即可
 
-- 先安装pip：sudo apt install python-pip
-- 安装ryu：cd ryu; pip install .
-- 安装完成回会提醒让升级pip
-  - sudo pip install --upgrade pip
-  - 这里会出现问题，安装失败，尝试sudo pip install --upgrade --ignore-installed pip
-  - 如果还是失败，参考 https://stackoverflow.com/questions/49940813/pip-no-module-named-internal/50639340
+- 安装完成后，需要将test_data/tt_test目录copy到虚拟机中，然后更新ryu/ryu/app/simple_switch_tt_13.py中对应tt_test的地址
 
 9. 创建自己branch，写完代码，编译通过，实验没有问题，就向TT-openvswitch提交pull request
