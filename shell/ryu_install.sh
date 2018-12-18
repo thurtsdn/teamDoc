@@ -1,6 +1,9 @@
 #!/bin/bash
 
-cd ryu
+# ryu install & config
+# please run this in ryu root dir
+
+# cd ryu
 sudo apt-get install python-pip
 sudo pip install .
 sudo pip install --upgrade pip
@@ -11,4 +14,4 @@ sudo python2.7 get-pip.py --force-reinstall
 # set soft link
 cd /usr/local/lib/python2.7/dist-packages
 sudo mv ryu ryu.orig
-sudo ln -s ~/Workspace/ryu/ryu ./
+sudo ln -s $(cd -)/ryu ./
