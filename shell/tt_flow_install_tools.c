@@ -1,3 +1,20 @@
+/*
+ * It is ai tools which can send tt flow to the datapath of ovs.
+ * Introduction:
+ * 1. complie the program:
+ *     "~$ gcc tt_flow_install_tools.c -c tfit"
+ * 2. type this command in the terminal:
+ *     "~$ ./tfit 1 2 3 4 5 6 7"
+ *     it means that sending a tt_flow like this:      
+ *         uint8_t port = 1,
+ *         uint8_t etype = 2,
+ *         uint8_t flow_id = 3,
+ *         uint32_t scheduled_time = 4,
+ *         uint32_t period = 5,
+ *         uint32_t buffer_id = 6,
+ *         uint32_t pkt_size = 7,
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -56,6 +73,17 @@ struct ovs_header {
     int dp_ifindex;
 };
 
+/* Message structure for ONF_ET_TT_FLOW_MDOD. */
+struct tt_flow {
+    uint8_t port; /* The entry related port. */
+    uint8_t etype; /* Send entry or receive entry. */
+    uint8_t flow_id; /* The identify of a flow. */
+    uint32_t scheduled_time; /* The scheduled time that the flow packet is received or sent. */
+    uint32_t period; /* The scheduling period. */
+    uint32_t buffer_id; /* Buffered packet to apply to. */
+    uint32_t pkt_size; /* The flow packet size. */
+};
+
 //memory for netlink request and response messages - headers are included
 struct message { 			
     struct nlmsghdr nh;
@@ -64,7 +92,7 @@ struct message {
     char payload[256];
 };
 
-int main(void) {
+int main(int argc, char* argv[]) {
 	int sd;
 	struct sockaddr_nl nladdr;
 	struct message request;
@@ -157,49 +185,59 @@ int main(void) {
     request.oh.dp_ifindex = 0;
     request.nh.nlmsg_len += sizeof(struct ovs_header);
 
-    uint8_t port = 3;
+    struct tt_flow tf = {
+        .port = (argc > 1)? (uint8_t)atoi(argv[1]) : 0,
+        .etype = (argc > 2)? (uint8_t)atoi(argv[2]) : 0,
+        .flow_id = (argc > 3)? (uint8_t)atoi(argv[3]) : 0,
+        .scheduled_time = (argc > 4)? (uint32_t)atoi(argv[4]) : 0,
+        .period = (argc > 5)? (uint32_t)atoi(argv[5]) : 0,
+        .buffer_id = (argc > 6)? (uint32_t)atoi(argv[6]) : 0,
+        .pkt_size = (argc > 7)? (uint32_t)atoi(argv[7]) : 0,
+    };
+
+    uint8_t port = tf.port;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_PORT; 
     nla->nla_len = NLA_HDRLEN + sizeof(port); 
     memcpy(NLA_DATA(nla), &port, sizeof(port));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint8_t etype = 4;
+    uint8_t etype = tf.etype;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_ETYPE; 
     nla->nla_len = NLA_HDRLEN + sizeof(etype); 
     memcpy(NLA_DATA(nla), &etype, sizeof(etype));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint8_t flow_id = 5;
+    uint8_t flow_id = tf.flow_id;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_FLOW_ID; 
     nla->nla_len = NLA_HDRLEN + sizeof(flow_id); 
     memcpy(NLA_DATA(nla), &flow_id, sizeof(flow_id));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint32_t scheduled_time = 6;
+    uint32_t scheduled_time = tf.scheduled_time;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_SCHEDULED_TIME; 
     nla->nla_len = NLA_HDRLEN + sizeof(scheduled_time); 
     memcpy(NLA_DATA(nla), &scheduled_time, sizeof(scheduled_time));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint32_t period = 7;
+    uint32_t period = tf.period;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_PERIOD; 
     nla->nla_len = NLA_HDRLEN + sizeof(period); 
     memcpy(NLA_DATA(nla), &period, sizeof(period));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint32_t buffer_id = 8;
+    uint32_t buffer_id = tf.buffer_id;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_BUFFER_ID; 
     nla->nla_len = NLA_HDRLEN + sizeof(buffer_id); 
     memcpy(NLA_DATA(nla), &buffer_id, sizeof(buffer_id));
     request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
 
-    uint32_t pkt_size = 9;
+    uint32_t pkt_size = tf.pkt_size;
     nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
     nla->nla_type = OVS_TT_FLOW_ATTR_PKT_SIZE; 
     nla->nla_len = NLA_HDRLEN + sizeof(pkt_size); 
@@ -214,9 +252,8 @@ int main(void) {
   		close(sd);
   		return -1;
    	}
-   	printf("Sent to kernel: OVS_TT_FLOW_ATTR_PORT: %d\n", port);
-	printf("Sent to kernel: OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 
+    /*
    	//Receive reply from kernel
    	len = recv(sd, &reply, sizeof(reply), 0);
    	if (len < 0) {
@@ -247,6 +284,7 @@ int main(void) {
 
 	nla = (struct nlattr *)((char *)nla + nla->nla_len);
 	printf("Kernel replied: OVS_TT_FLOW_ATTR_ETYPE: %d\n", *(int *)NLA_DATA(nla));
+    */
 
 	//Step 5. Close the socket and quit
    	close(sd);
