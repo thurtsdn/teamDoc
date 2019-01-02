@@ -1,9 +1,29 @@
-#include <net/genetlink.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <poll.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <stdint.h>
+#include <linux/genetlink.h>
+
 //Code based on http://people.ee.ethz.ch/~arkeller/linux/multi/kernel_user_space_howto-3.html
 
-#define OVS_TT_FAMILY "ovs_tt_test"
+/* Generic macros for dealing with netlink sockets. Might be duplicated
+ * elsewhere. It is recommended that commercial grade applications use
+ * libnl or libnetlink and use the interfaces provided by the library
+ */
+#define GENLMSG_DATA(glh) ((void *)(NLMSG_DATA(glh) + GENL_HDRLEN))
+#define GENLMSG_PAYLOAD(glh) (NLMSG_PAYLOAD(glh, 0) - GENL_HDRLEN)
+#define NLA_DATA(na) ((void *)((char*)(na) + NLA_HDRLEN))
+
+#define OVS_TT_FAMILY "ovs_tt"
 #define OVS_TT_VERSION 0x1
 
 /* attributes (variables):
@@ -20,31 +40,8 @@ enum {
     OVS_TT_FLOW_ATTR_PERIOD,
     OVS_TT_FLOW_ATTR_BUFFER_ID,
     OVS_TT_FLOW_ATTR_PKT_SIZE,
-    __OVS_TT_FLOW_ATTR_MAX,
-};
-#define OVS_TT_FLOW_ATTR_MAX (__OVS_TT_FLOW_ATTR_MAX - 1)
-
-/* attribute policy: defines which attribute has which type (e.g int, char * etc)
- * possible values defined in net/netlink.h 
- */
-static struct nla_policy doc_exmpl_genl_policy[OVS_TT_FLOW_ATTR_MAX + 1] = {
-    [OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U8 },
-    [OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U8 },
-    [OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U8 },
-    [OVS_TT_FLOW_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_PKT_SIZE] = { .type = NLA_U32 },
 };
 
-//family definition
-static struct genl_family doc_exmpl_gnl_family = {
-	.id = GENL_ID_GENERATE,         //Genetlink should generate an id
-	.hdrsize = 0,
-	.name = OVS_TT_FAMILY,          //The name of this family, used by userspace application
-	.version = OVS_TT_VERSION,      //Version number  
-	.maxattr = OVS_TT_FLOW_ATTR_MAX,
-};
 
 /* commands: enumeration of all commands (functions), 
  * used by userspace application to identify command to be executed
@@ -53,149 +50,205 @@ enum ovs_tt_cmd {
     OVS_TT_FLOW_CMD_NEW,
     OVS_TT_FLOW_CMD_DEL,
     OVS_TT_FLOW_CMD_GET,
-    __OVS_TT_FLOW_CMD_MAX
 };
-#define OVS_TT_FLOW_CMD_MAX (__OVS_TT_FLOW_CMD_MAX - 1)
 
-//An echo command, receives a message, prints it and sends another message back
-int doc_exmpl_echo(struct sk_buff *skb_2, struct genl_info *info) 
-{
+struct ovs_header {
+    int dp_ifindex;
+};
+
+//memory for netlink request and response messages - headers are included
+struct message { 			
+    struct nlmsghdr nh;
+    struct genlmsghdr gh;
+    struct ovs_header oh;
+    char payload[256];
+};
+
+int main(void) {
+	int sd;
+	struct sockaddr_nl nladdr;
+	struct message request;
+	struct message reply;
 	struct nlattr *nla;
-	struct sk_buff *skb;
-	int rc;
-	void *msg_head;
+	int len;
+	int nl_family_id; 		
 
-	int port;
-	int etype;
-	int flow_id;
-	int scheduled_time;
-	int period;
-	int buffer_id;
-	int pkt_size;
+	//Step 1: Open the socket. Note that protocol = NETLINK_GENERIC
+    sd = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+    if (sd < 0) {
+  		perror("socket()");
+  		return -1;
+    }
 
-	if (info == NULL) {
-		goto out;
-	}
-  
-	/* For each attribute there is an index in info->attrs which points to a nlattr structure
-	 * in this structure the data is given
-	 */
-	nla = info->attrs[OVS_TT_FLOW_ATTR_PORT];
-	port = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_PORT: %d\n", port);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_ETYPE];
-	etype = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_FLOW_ID];
-	flow_id = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_SCHEDULED_TIME];
-	scheduled_time = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", scheduled_time);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_PERIOD];
-	period = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_BUFFER_ID];
-	buffer_id = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
-
-	nla = info->attrs[OVS_TT_FLOW_ATTR_PKT_SIZE];
-	pkt_size = *(int *)nla_data(nla);
-	printk(KERN_CRIT "OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
-
-	//Send a message back
-	//Allocate some memory, since the size is not yet known use NLMSG_GOODSIZE
-	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (skb == NULL) {
-		goto out;
-	}
-
-	//Create the message headers
-	/* arguments of genlmsg_put: 
-	   	struct sk_buff *, 
-           	int (sending) pid, 
-           	int sequence number, 
-           	struct genl_family *, 
-           	int flags, 
-           	u8 command index (why do we need this?) */
- 	msg_head = genlmsg_put(skb, 0, info->snd_seq + 1, &doc_exmpl_gnl_family, 0, OVS_TT_FLOW_CMD_NEW);
- 	if (msg_head == NULL) {
-  		rc = -ENOMEM;
-  		goto out;
+	//Step 2: Bind the socket.
+ 	memset(&nladdr, 0, sizeof(nladdr));
+ 	nladdr.nl_family = AF_NETLINK;
+ 	nladdr.nl_groups = 0;
+ 	if (bind(sd, (struct sockaddr *) &nladdr, sizeof(nladdr)) < 0) {
+  		perror("bind()");
+  		close(sd);
+  		return -1;
  	}
- 	//Add a DOC_EXMPL_A_MSG attribute (actual the attribute type of the message sent from userspace)
-	rc = nla_put_u8(skb, OVS_TT_FLOW_ATTR_PORT, port);
- 	if (rc != 0) {
-  		goto out;
- 	}
- 	
-	rc = nla_put_u8(skb, OVS_TT_FLOW_ATTR_ETYPE, etype);
- 	if (rc != 0) {
-  		goto out;
- 	}
+
+	//Step 3. Resolve the family ID corresponding to the string "CONTROL_EXMPL"
+	nla = (struct nlattr *) GENLMSG_DATA(&request);
+	nla->nla_type = CTRL_ATTR_FAMILY_NAME;
+	nla->nla_len = NLA_HDRLEN + strlen(OVS_TT_FAMILY) + 1;
+	strcpy((char *)NLA_DATA(nla), OVS_TT_FAMILY); 
+    	
+	request.gh.cmd = CTRL_CMD_GETFAMILY;
+    request.gh.version = 1;
+    
+    request.nh.nlmsg_len = NLMSG_HDRLEN + GENL_HDRLEN + NLA_ALIGN(nla->nla_len);
+    request.nh.nlmsg_type = GENL_ID_CTRL;
+    request.nh.nlmsg_flags = NLM_F_REQUEST;
+    request.nh.nlmsg_seq = 0;
+    request.nh.nlmsg_pid = 0;
+
+ 	//Send the family ID request message to the netlink controller
+ 	len = sendto(sd, (char *) &request, request.nh.nlmsg_len,
+  				0, (struct sockaddr *) &nladdr, sizeof(nladdr));
+ 	if (len != request.nh.nlmsg_len) {
+  		perror("sendto()");
+  		close(sd);
+  		return -1;
+    }
+
+ 	//Wait for the response message
+    len = recv(sd, &reply, sizeof(reply), 0);
+    if (len < 0) {
+     	perror("recv()");
+       	return -1;
+    }	
+
+    //Validate response message
+    if (!NLMSG_OK((&reply.nh), len)) {
+       	fprintf(stderr, "family ID request : invalid message\n");
+       	return -1;
+    }
+    	
 	
-	//Finalize the message
- 	genlmsg_end(skb, msg_head);
+	if (reply.nh.nlmsg_type == NLMSG_ERROR) { //error
+       	fprintf(stderr, "family ID request : receive error\n");
+       	return -1;
+    }
 
-    	//Send the message back
- 	rc = genlmsg_unicast(genl_info_net(info), skb, info->snd_portid);
- 	if (rc != 0) {
-  		goto out;
+    //Extract family ID
+    nla = (struct nlattr *) GENLMSG_DATA(&reply);
+    nla = (struct nlattr *) ((char *) nla + NLA_ALIGN(nla->nla_len));
+    if (nla->nla_type == CTRL_ATTR_FAMILY_ID) {
+       	nl_family_id = *(__u16 *) NLA_DATA(nla);
+    }
+
+    //Step 4. Send own custom message
+    memset(&request, 0, sizeof(request));
+    memset(&reply, 0, sizeof(reply));
+
+    request.nh.nlmsg_type = nl_family_id;
+    request.nh.nlmsg_flags = NLM_F_REQUEST;
+    request.nh.nlmsg_seq = 60;
+    request.nh.nlmsg_pid = getpid();
+    request.nh.nlmsg_len = NLMSG_HDRLEN;
+
+    request.gh.cmd = OVS_TT_FLOW_CMD_NEW; 
+    request.gh.version = OVS_TT_VERSION;
+    request.nh.nlmsg_len += GENL_HDRLEN;
+
+    request.oh.dp_ifindex = 0;
+    request.nh.nlmsg_len += sizeof(struct ovs_header);
+
+    uint8_t port = 3;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_PORT; 
+    nla->nla_len = NLA_HDRLEN + sizeof(port); 
+    memcpy(NLA_DATA(nla), &port, sizeof(port));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint8_t etype = 4;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_ETYPE; 
+    nla->nla_len = NLA_HDRLEN + sizeof(etype); 
+    memcpy(NLA_DATA(nla), &etype, sizeof(etype));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint8_t flow_id = 5;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_FLOW_ID; 
+    nla->nla_len = NLA_HDRLEN + sizeof(flow_id); 
+    memcpy(NLA_DATA(nla), &flow_id, sizeof(flow_id));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint32_t scheduled_time = 6;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_SCHEDULED_TIME; 
+    nla->nla_len = NLA_HDRLEN + sizeof(scheduled_time); 
+    memcpy(NLA_DATA(nla), &scheduled_time, sizeof(scheduled_time));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint32_t period = 7;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_PERIOD; 
+    nla->nla_len = NLA_HDRLEN + sizeof(period); 
+    memcpy(NLA_DATA(nla), &period, sizeof(period));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint32_t buffer_id = 8;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_BUFFER_ID; 
+    nla->nla_len = NLA_HDRLEN + sizeof(buffer_id); 
+    memcpy(NLA_DATA(nla), &buffer_id, sizeof(buffer_id));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+    uint32_t pkt_size = 9;
+    nla = (struct nlattr *) ((char *)&request + request.nh.nlmsg_len);
+    nla->nla_type = OVS_TT_FLOW_ATTR_PKT_SIZE; 
+    nla->nla_len = NLA_HDRLEN + sizeof(pkt_size); 
+    memcpy(NLA_DATA(nla), &pkt_size, sizeof(pkt_size));
+    request.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+ 	//Send the custom message
+ 	len = sendto(sd, (char *) &request, request.nh.nlmsg_len,
+  				0, (struct sockaddr *) &nladdr, sizeof(nladdr));
+ 	if (len != request.nh.nlmsg_len) {
+  		perror("sendto()");
+  		close(sd);
+  		return -1;
+   	}
+   	printf("Sent to kernel: OVS_TT_FLOW_ATTR_PORT: %d\n", port);
+	printf("Sent to kernel: OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
+
+   	//Receive reply from kernel
+   	len = recv(sd, &reply, sizeof(reply), 0);
+   	if (len < 0) {
+       	perror("recv()");
+       	return -1;
+   	}
+
+ 	//Validate response message
+   	if (reply.nh.nlmsg_type == NLMSG_ERROR) { 
+       	printf("Error while receiving reply from kernel: NACK Received\n");
+       	close(sd);
+       	return -1;
+   	}
+   	if (len < 0) {
+       	printf("Error while receiving reply from kernel\n");
+       	close(sd);
+       	return -1;
+   	}
+   	if (!NLMSG_OK((&reply.nh), len)) {
+       	printf("Error while receiving reply from kernel: Invalid Message\n");
+       	close(sd);
+   		return -1;
  	}
- 	return 0;
 
-out:
- 	printk(KERN_CRIT "An error occured in doc_exmpl_echo:\n");
- 	return 0;
+   	//Parse the reply message
+   	nla = (struct nlattr *) GENLMSG_DATA(&reply);
+   	printf("Kernel replied: OVS_TT_FLOW_ATTR_PORT: %d\n", *(int *)NLA_DATA(nla));
+
+	nla = (struct nlattr *)((char *)nla + nla->nla_len);
+	printf("Kernel replied: OVS_TT_FLOW_ATTR_ETYPE: %d\n", *(int *)NLA_DATA(nla));
+
+	//Step 5. Close the socket and quit
+   	close(sd);
+   	return 0;
 }
-
-//Commands: mapping between the command enumeration and the actual function
-struct genl_ops doc_exmpl_gnl_ops_echo[] = {
-	{
-		.cmd = OVS_TT_FLOW_CMD_NEW,
- 		.flags = 0,
- 		.policy = doc_exmpl_genl_policy,
- 		.doit = doc_exmpl_echo,
- 		.dumpit = NULL,
-	}
-};
-
-static int __init gnKernel_init(void) 
-{
- 	int rc;
- 	printk(KERN_CRIT "Generic Netlink Example Module inserted.\n");
-        
- 	//Register a generic netlink family with ops
- 	rc = genl_register_family_with_ops(&doc_exmpl_gnl_family, doc_exmpl_gnl_ops_echo);
- 	if (rc != 0) {
-  		printk(KERN_CRIT "Register family with ops: %i\n",rc);
-  		genl_unregister_family(&doc_exmpl_gnl_family);
-  		goto failure;
- 	}
- 	return 0; 
-failure:
- 	printk(KERN_CRIT "An error occured while inserting the generic netlink example module\n");
- 	return -1;
-}
-
-static void __exit gnKernel_exit(void) 
-{
- 	int ret;
- 	printk(KERN_CRIT "Generic Netlink Example Module unloaded.\n");
- 
-    	//Unregister the family
- 	ret = genl_unregister_family(&doc_exmpl_gnl_family);
- 	if(ret !=0) {
-  		printk(KERN_CRIT "Unregister family %i\n",ret);
-  		return;
- 	}
-}
-
-module_init(gnKernel_init);
-module_exit(gnKernel_exit);
-MODULE_LICENSE("GPL");
