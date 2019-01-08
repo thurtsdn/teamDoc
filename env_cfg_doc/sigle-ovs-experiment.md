@@ -13,7 +13,7 @@
    ```
 
 
-3. ryu发送TT调度表，在/home/chenwh/Workspace/Data/tt_test/schedule/  目录下存放调度表文件。具体格式见https://github.com/thurtsdn/TeamDoc/tree/master/test_data/tt_test_sj/schedule文件夹下调度表格式。
+3. ryu发送TT调度表，在/home/chenwh/Workspace/Data/tt_test/schedule/  目录下存放调度表文件。具体格式见https://github.com/thurtsdn/TeamDoc/tree/master/test_data/tt_test_sj/schedule 文件夹下调度表格式。
 
    > 具体实验的过程中，vport的id存在随机的变化，接下来将会解决该问题，在单ovs双端口的情况下，ovs会生成四个端口，其中id为0的端口为内部端口，在调度表中，一般使用id为1或者2的端口号，可以通过先使用send.sh发送报文，通过dmesg | grep PROCESS中的信息推测当前发送的端口的id。
 
