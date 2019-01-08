@@ -134,5 +134,5 @@
    [60630.901076] openvswitch: LATE_PACKET: flow_id 0 arrive late on vport 2!, throw it!
    ```
 
-   6. 使用wireshark进行抓包，参见https://github.com/thurtsdn/TeamDoc/blob/master/env_cfg_doc/wireshark-install-from-src.md
+ 6. 使用wireshark进行抓包，参见https://github.com/thurtsdn/TeamDoc/blob/master/env_cfg_doc/wireshark-install-from-src.md
 
