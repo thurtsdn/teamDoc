@@ -1,6 +1,6 @@
 ### 单OVS下实验过程:
 
-1. 启动ryu和ovs，参考文档https://github.com/thurtsdn/TeamDoc/blob/master/env_cfg_doc/startup-of1.3-tt-exp-env%20.md
+1. 启动ryu和mininet，参考文档https://github.com/thurtsdn/TeamDoc/blob/master/env_cfg_doc/startup-of1.3-tt-exp-env%20.md
 
 2. 打开TT报文网络端口63000
 
