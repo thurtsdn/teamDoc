@@ -121,7 +121,7 @@
    [60626.879636] openvswitch: PROCESS: vport_no 2 arrive flow id 1.
    ```
 
-   dmesg | grep LATE_PACKET 显示正在迟到的TT报文信息
+   dmesg | grep LATE_PACKET 显示迟到的TT报文信息
 
    ```
    [60623.859536] openvswitch: LATE_PACKET: flow_id 1 arrive late on vport 2!, throw it!
