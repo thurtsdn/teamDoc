@@ -16,6 +16,7 @@ git checkout wireshark-2.6.5-tt-ext
 
 - GLib-2.0
 - Qt (> 4.8)
+    - 参考 https://askubuntu.com/questions/820054/selecting-qt5-using-qtchooser
 - cmake
 
 ### 3. 创建目录&编译安装
@@ -29,6 +30,7 @@ git checkout wireshark-2.6.5-tt-ext
 
 编译安装：
 - sudo cmake ..
+    - 如遇到 `Could NOT find GCRYPT (missing: GCRYPT_LIBRARY GCRYPT_INCLUDE_DIR)`，执行`sudo apt-get build-dep wireshark`
 - sudo make
 - sudo make install
 
