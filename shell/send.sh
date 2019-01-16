@@ -1,21 +1,13 @@
 #!/bin/bash
 
-# -d 01"hello"
 send_1(){
 while true
-do	
-	sendip -p ipv4 -is 10.0.0.1 -id 10.0.0.2 -p udp -us 1000 -ud 63000 -d 0x000148656C6C6F 10.0.0.2
-	sleep 1.0
-done
-}
- 
-# -d 02"hello"
-send_2(){
-while true
 do
-    sendip -p ipv4 -is 10.0.0.1 -id 10.0.0.2 -p udp -us 2000 -ud 63000 -d 0x000248656C6C6F 10.0.0.2
-    sleep 2.0
+        # send flow id 0 and 1 
+        sendip -p ipv4 -is 10.0.0.1 -id 10.0.0.2 -p udp -us 8000 -ud 63000 -d 0x00 10.0.0.2
+        sendip -p ipv4 -is 10.0.0.1 -id 10.0.0.2 -p udp -us 8000 -ud 63000 -d 0x01 10.0.0.2
+        sleep 1
 done
 }
- 
-send_1 & send_2
+
+send_1
