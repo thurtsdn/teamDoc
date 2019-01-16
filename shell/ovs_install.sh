@@ -1,10 +1,28 @@
 #!/bin/bash
 
-#ovs2.5.x install
+#ovs2.5.x install & uninstall
 
-# cd ovs
+if [ "$1" == "-h" ]; then
+    echo -e "Openvswitch install&uninstall shell helps."
+    echo -e "\t -r: Only uninstall openvswtich. Otherwise, reinstall the openvswitch."
+    exit
+fi
+
+export PATH=$PATH:/usr/local/share/openvswitch/scripts                                        
+ovs-ctl stop
+ovs-dpctl del-dp ovs-system
+rmmod openvswitch
+kil `cd /usr/local/var/run/openvswitch && cat ovsdb-server.pid ovs-vswitchd.pid`
+rm -rf /usr/local/etc/openvswitch
+cd ovs 
+make clean
+
+if [ "$1" == "-r" ]; then
+    exit
+fi
+
 ./boot.sh
-./configure --with-linux=/lib/modules/`uname -r`/build    --enable-Werror
+./configure --with-linux=/lib/modules/`uname -r`/build   --enable-Werror
 make
 make install
 make modules_install
