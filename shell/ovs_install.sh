@@ -37,4 +37,5 @@ ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
                  --pidfile --detach
 ovs-vsctl --no-wait init
 ovs-vswitchd --pidfile --detach
+ovs-vsctl set-manager ptcp:6640
 
